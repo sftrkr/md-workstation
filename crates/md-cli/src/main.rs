@@ -56,6 +56,12 @@ enum Commands {
     Minimize { config: PathBuf },
     /// Validate a simulation config.
     Validate { config: PathBuf },
+    /// Run the curated validation config suite.
+    ValidateSuite {
+        /// Include longer validation/stress configs.
+        #[arg(long)]
+        long: bool,
+    },
     /// Compare naive and neighbor-list force evaluation for a config.
     BenchNeighbor {
         config: PathBuf,
@@ -87,16 +93,11 @@ fn main() -> Result<()> {
         Commands::Run { config } => run_command(&config),
         Commands::Minimize { config } => minimize_command(&config),
         Commands::Validate { config } => {
-            let run_config = load_config(&config)?;
-            run_config.validate()?;
-            let (mut state, topology) =
-                prepare_initial_state_and_topology(&run_config, config.parent())?;
-            apply_topology_to_state(&mut state, topology.as_ref())?;
-            let force_options = run_config.force_options()?;
-            run_config.mixed_lennard_jones_options(&state, &force_options)?;
+            validate_config_for_suite(&config)?;
             println!("Config is valid: {}", config.display());
             Ok(())
         }
+        Commands::ValidateSuite { long } => validate_suite_command(long),
         Commands::BenchNeighbor { config, repeats } => benchmark_neighbor_command(&config, repeats),
         Commands::Analyze {
             run_dir,
@@ -109,6 +110,271 @@ fn main() -> Result<()> {
             additional_steps,
         } => resume_command(&run_dir, additional_steps),
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ValidationSuiteCommand {
+    Validate,
+}
+
+impl ValidationSuiteCommand {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Validate => "validate",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ValidationSuiteEntry {
+    name: &'static str,
+    command: ValidationSuiteCommand,
+    path: &'static str,
+    long: bool,
+}
+
+const VALIDATION_SUITE_ENTRIES: &[ValidationSuiteEntry] = &[
+    ValidationSuiteEntry {
+        name: "small-nve",
+        command: ValidationSuiteCommand::Validate,
+        path: "examples/validation/small-nve.toml",
+        long: false,
+    },
+    ValidationSuiteEntry {
+        name: "cold-lattice",
+        command: ValidationSuiteCommand::Validate,
+        path: "examples/validation/cold-lattice.toml",
+        long: false,
+    },
+    ValidationSuiteEntry {
+        name: "pbc-small-nve",
+        command: ValidationSuiteCommand::Validate,
+        path: "examples/validation/pbc-small-nve.toml",
+        long: false,
+    },
+    ValidationSuiteEntry {
+        name: "neighbor-compare",
+        command: ValidationSuiteCommand::Validate,
+        path: "examples/validation/neighbor-compare.toml",
+        long: false,
+    },
+    ValidationSuiteEntry {
+        name: "topology-neighbor",
+        command: ValidationSuiteCommand::Validate,
+        path: "examples/validation/topology-neighbor-compare.toml",
+        long: false,
+    },
+    ValidationSuiteEntry {
+        name: "parallel-open",
+        command: ValidationSuiteCommand::Validate,
+        path: "examples/validation/parallel-open.toml",
+        long: false,
+    },
+    ValidationSuiteEntry {
+        name: "xyz-input",
+        command: ValidationSuiteCommand::Validate,
+        path: "examples/validation/xyz-input.toml",
+        long: false,
+    },
+    ValidationSuiteEntry {
+        name: "bonded-dimer",
+        command: ValidationSuiteCommand::Validate,
+        path: "examples/validation/bonded-dimer.toml",
+        long: false,
+    },
+    ValidationSuiteEntry {
+        name: "angle-trimer",
+        command: ValidationSuiteCommand::Validate,
+        path: "examples/validation/angle-trimer.toml",
+        long: false,
+    },
+    ValidationSuiteEntry {
+        name: "force-field-report",
+        command: ValidationSuiteCommand::Validate,
+        path: "examples/validation/force-field-report.toml",
+        long: false,
+    },
+    ValidationSuiteEntry {
+        name: "dihedral-chain",
+        command: ValidationSuiteCommand::Validate,
+        path: "examples/validation/dihedral-chain.toml",
+        long: false,
+    },
+    ValidationSuiteEntry {
+        name: "berendsen-thermostat",
+        command: ValidationSuiteCommand::Validate,
+        path: "examples/validation/berendsen-thermostat.toml",
+        long: false,
+    },
+    ValidationSuiteEntry {
+        name: "minimize-lj",
+        command: ValidationSuiteCommand::Validate,
+        path: "examples/validation/minimize-lj.toml",
+        long: false,
+    },
+    ValidationSuiteEntry {
+        name: "pdb-input",
+        command: ValidationSuiteCommand::Validate,
+        path: "examples/validation/pdb-input.toml",
+        long: false,
+    },
+    ValidationSuiteEntry {
+        name: "binary-checkpoint",
+        command: ValidationSuiteCommand::Validate,
+        path: "examples/validation/binary-checkpoint.toml",
+        long: false,
+    },
+    ValidationSuiteEntry {
+        name: "force-field-types",
+        command: ValidationSuiteCommand::Validate,
+        path: "examples/validation/force-field-types.toml",
+        long: false,
+    },
+    ValidationSuiteEntry {
+        name: "long-nve-drift",
+        command: ValidationSuiteCommand::Validate,
+        path: "examples/validation/long-nve-drift.toml",
+        long: true,
+    },
+    ValidationSuiteEntry {
+        name: "larger-neighbor",
+        command: ValidationSuiteCommand::Validate,
+        path: "examples/validation/larger-neighbor-compare.toml",
+        long: true,
+    },
+];
+
+fn validate_suite_command(include_long: bool) -> Result<()> {
+    let entries = selected_validation_suite_entries(include_long);
+    if entries.is_empty() {
+        bail!("validation suite has no entries");
+    }
+
+    println!("Validation suite");
+    println!(
+        "Mode: {}",
+        if include_long {
+            "standard + long"
+        } else {
+            "standard"
+        }
+    );
+    println!(
+        "{:<24} {:<10} {:<52} {:<7} {:>10}  error",
+        "name", "command", "config", "status", "elapsed"
+    );
+    println!("{}", "-".repeat(118));
+
+    let mut failures = Vec::new();
+    for entry in &entries {
+        let started = Instant::now();
+        let result = run_validation_suite_entry(entry);
+        let elapsed = format!("{:.3?}", started.elapsed());
+        let (status, error) = match &result {
+            Ok(()) => ("ok", String::new()),
+            Err(error) => ("failed", first_error_line(error)),
+        };
+        println!(
+            "{:<24} {:<10} {:<52} {:<7} {:>10}  {}",
+            entry.name,
+            entry.command.label(),
+            entry.path,
+            status,
+            elapsed,
+            error
+        );
+        if let Err(error) = result {
+            failures.push((entry.name, entry.path, format!("{error:#}")));
+        }
+    }
+
+    if failures.is_empty() {
+        println!("Validation suite passed: {} checks", entries.len());
+        Ok(())
+    } else {
+        println!(
+            "Validation suite failed: {} of {} checks failed",
+            failures.len(),
+            entries.len()
+        );
+        for (name, path, error) in failures {
+            println!("- {name} ({path}): {error}");
+        }
+        bail!("validation suite failed");
+    }
+}
+
+fn selected_validation_suite_entries(include_long: bool) -> Vec<&'static ValidationSuiteEntry> {
+    VALIDATION_SUITE_ENTRIES
+        .iter()
+        .filter(|entry| include_long || !entry.long)
+        .collect()
+}
+
+fn run_validation_suite_entry(entry: &ValidationSuiteEntry) -> Result<()> {
+    match entry.command {
+        ValidationSuiteCommand::Validate => {
+            validate_config_for_suite(&resolve_validation_suite_config_path(entry.path))
+        }
+    }
+}
+
+fn resolve_validation_suite_config_path(path: &str) -> PathBuf {
+    let direct = PathBuf::from(path);
+    if direct.exists() {
+        return direct;
+    }
+
+    if let Ok(current_dir) = std::env::current_dir() {
+        for ancestor in current_dir.ancestors() {
+            let candidate = ancestor.join(path);
+            if candidate.exists() {
+                return candidate;
+            }
+        }
+    }
+
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(path)
+}
+
+fn validate_config_for_suite(config_path: &Path) -> Result<()> {
+    let run_config = load_config(config_path)?;
+    run_config.validate()?;
+    let (mut state, topology) =
+        prepare_initial_state_and_topology(&run_config, config_path.parent())?;
+    apply_topology_to_state(&mut state, topology.as_ref())?;
+    let force_options = run_config.force_options()?;
+    let mixed_force_options = run_config.mixed_lennard_jones_options(&state, &force_options)?;
+    let coulomb_options = run_config.coulomb_options()?;
+    let neighbor_list = if run_config.neighbor.enabled {
+        Some(NeighborList::build(
+            &state,
+            run_config.neighbor_list_config(&force_options)?,
+        )?)
+    } else {
+        None
+    };
+    compute_configured_force_report(
+        &mut state,
+        &force_options,
+        mixed_force_options.as_ref(),
+        neighbor_list.as_ref(),
+        topology.as_ref(),
+        coulomb_options.as_ref(),
+        run_config.execution.parallel,
+    )?;
+    Ok(())
+}
+
+fn first_error_line(error: &anyhow::Error) -> String {
+    error
+        .to_string()
+        .lines()
+        .next()
+        .unwrap_or("unknown error")
+        .to_string()
 }
 
 fn run_command(config_path: &Path) -> Result<()> {
@@ -3248,6 +3514,27 @@ mod tests {
         assert_eq!(parse_pair_indices(" 2, 5 ").unwrap(), (2, 5));
         assert!(parse_pair_indices("1,1").is_err());
         assert!(parse_pair_indices("1:2").is_err());
+    }
+
+    #[test]
+    fn validation_suite_filters_long_entries() {
+        let standard = selected_validation_suite_entries(false);
+        let long = selected_validation_suite_entries(true);
+
+        assert!(standard.iter().all(|entry| !entry.long));
+        assert!(long.iter().any(|entry| entry.name == "long-nve-drift"));
+        assert!(long.len() > standard.len());
+        assert!(!long
+            .iter()
+            .any(|entry| entry.path.ends_with("long-nve-drift-100k.toml")));
+    }
+
+    #[test]
+    fn validation_suite_entry_checks_config_and_force_setup() {
+        validate_config_for_suite(&resolve_validation_suite_config_path(
+            "examples/validation/small-nve.toml",
+        ))
+        .unwrap();
     }
 
     #[test]

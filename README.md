@@ -151,6 +151,8 @@ The validation suite adds deterministic checks around the first engine:
 Run the validation examples:
 
 ```bash
+cargo run -p md-cli -- validate-suite
+cargo run -p md-cli -- validate-suite --long
 cargo run -p md-cli -- run examples/validation/small-nve.toml
 cargo run -p md-cli -- run examples/validation/long-nve-drift.toml
 cargo run -p md-cli -- run examples/validation/cold-lattice.toml
@@ -169,6 +171,12 @@ cargo run -p md-cli -- run examples/validation/pdb-input.toml
 cargo run -p md-cli -- run examples/validation/binary-checkpoint.toml
 cargo run -p md-cli -- run examples/validation/force-field-types.toml
 ```
+
+`validate-suite` performs a compact config, input, topology, neighbor, and force
+setup smoke check for the curated validation configs. The default suite skips
+longer stress configs; pass `--long` to include `long-nve-drift.toml` and the
+larger neighbor benchmark config. The manual `long-nve-drift-100k.toml` file is
+kept out of the suite.
 
 For a manual longer stress check, copy `examples/validation/long-nve-drift.toml`
 and raise `simulation.steps` to `100000`; keep `dt = 0.0001` unless you are
