@@ -8,6 +8,7 @@ members = [
   "crates/md-report",
   "crates/md-io",
   "crates/md-cli",
+  "crates/md-ui",
 ]
 resolver = "2"
 
@@ -20,6 +21,13 @@ license = "MIT OR Apache-2.0"
 [workspace.dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
+eframe = { version = "0.28.1", default-features = false, features = [
+  "default_fonts",
+  "glow",
+  "wayland",
+  "x11",
+] }
+egui_plot = "0.28.1"
 md-core = { path = "crates/md-core" }
 md-force = { path = "crates/md-force" }
 md-integrator = { path = "crates/md-integrator" }

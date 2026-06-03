@@ -67,6 +67,7 @@ crates/
   md-report/      Markdown run report generation
   md-io/          XYZ, CSV, and JSON output helpers
   md-cli/         Command-line workflow
+  md-ui/          Optional desktop UI prototype
 examples/
   lj-fluid.toml              First runnable Lennard-Jones example
   molecules/argon-cluster.xyz
@@ -100,6 +101,19 @@ examples/
   validation/binary-checkpoint.toml
   validation/force-field-types.toml
 ```
+
+## Desktop UI Prototype
+
+The CLI remains the primary workflow. An optional egui/eframe desktop prototype
+is isolated in `md-ui` and built only when the `desktop` feature is enabled:
+
+```bash
+cargo run -p md-ui --features desktop
+```
+
+The prototype can open and edit validation TOML configs, start a simulation via
+the Rust CLI workflow, list run directories, preview `energy.csv`, and display
+`run-report.md`. It does not call external MD engines.
 
 ## Units
 

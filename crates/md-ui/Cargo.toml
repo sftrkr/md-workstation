@@ -1,0 +1,21 @@
+[package]
+name = "md-ui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "md-ui"
+path = "src/main.rs"
+
+[features]
+default = []
+desktop = ["dep:eframe", "dep:egui_plot"]
+
+[dependencies]
+anyhow = { workspace = true }
+eframe = { workspace = true, optional = true }
+egui_plot = { workspace = true, optional = true }
+md-core = { workspace = true }
+md-io = { workspace = true }
