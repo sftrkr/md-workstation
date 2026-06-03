@@ -1,0 +1,12 @@
+[package]
+name = "md-analysis"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+md-core = { workspace = true }
+md-io = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }

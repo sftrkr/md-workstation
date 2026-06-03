@@ -1,0 +1,12 @@
+[package]
+name = "md-integrator"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+md-core = { workspace = true }
+md-force = { workspace = true }
+md-neighbor = { workspace = true }
+thiserror = { workspace = true }

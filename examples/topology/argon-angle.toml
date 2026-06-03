@@ -1,0 +1,20 @@
+charges = [0.5, 0.0, -0.5]
+
+[[bonds]]
+i = 0
+j = 1
+k = 25.0
+r0 = 1.2
+
+[[bonds]]
+i = 1
+j = 2
+k = 25.0
+r0 = 1.2
+
+[[angles]]
+i = 0
+j = 1
+k = 2
+force_constant = 10.0
+theta0 = 1.5707963267948966

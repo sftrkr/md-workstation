@@ -1,0 +1,58 @@
+[project]
+name = "Force-field type validation"
+description = "Small Ar-Ne run used to validate per-element defaults and Lorentz-Berthelot LJ mixing."
+
+[simulation]
+steps = 20
+dt = 0.001
+output_interval = 5
+temperature = 0.0
+
+[input]
+path = "../molecules/mixed-argon-neon.xyz"
+format = "xyz"
+frame = 0
+
+[system]
+mass = 1.0
+seed = 1203
+
+[box]
+x = 7.0
+y = 7.0
+z = 7.0
+periodic = false
+
+[force]
+type = "lennard-jones"
+epsilon = 1.0
+sigma = 1.0
+cutoff = 4.0
+shift_potential = false
+
+[force_field]
+mixing_rule = "lorentz-berthelot"
+
+[force_field.types.Ar]
+mass = 2.0
+sigma = 1.0
+epsilon = 1.0
+charge = 0.5
+
+[force_field.types.Ne]
+mass = 4.0
+sigma = 2.0
+epsilon = 4.0
+charge = -0.25
+
+[neighbor]
+enabled = true
+skin = 0.3
+rebuild_interval = 5
+
+[execution]
+parallel = true
+
+[output]
+directory = "runs"
+name = "validation-force-field-types"

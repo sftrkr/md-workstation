@@ -1,0 +1,38 @@
+[workspace]
+members = [
+  "crates/md-core",
+  "crates/md-force",
+  "crates/md-integrator",
+  "crates/md-neighbor",
+  "crates/md-analysis",
+  "crates/md-report",
+  "crates/md-io",
+  "crates/md-cli",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.76"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+md-core = { path = "crates/md-core" }
+md-force = { path = "crates/md-force" }
+md-integrator = { path = "crates/md-integrator" }
+md-neighbor = { path = "crates/md-neighbor" }
+md-analysis = { path = "crates/md-analysis" }
+md-report = { path = "crates/md-report" }
+md-io = { path = "crates/md-io" }
+rand = "0.8"
+rand_chacha = "0.3"
+rayon = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }

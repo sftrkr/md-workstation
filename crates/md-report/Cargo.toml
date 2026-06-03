@@ -1,0 +1,13 @@
+[package]
+name = "md-report"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+md-analysis = { workspace = true }
+md-io = { workspace = true }
+
+[dev-dependencies]
+md-core = { workspace = true }

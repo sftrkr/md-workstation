@@ -1,0 +1,39 @@
+[simulation]
+steps = 50
+dt = 0.001
+output_interval = 10
+temperature = 0.1
+
+[input]
+path = "../molecules/argon-cluster.xyz"
+format = "xyz"
+frame = 0
+
+[system]
+mass = 1.0
+seed = 2027
+
+[box]
+x = 7.0
+y = 7.0
+z = 7.0
+periodic = false
+
+[force]
+type = "lennard-jones"
+epsilon = 1.0
+sigma = 1.0
+cutoff = 2.5
+shift_potential = false
+
+[neighbor]
+enabled = true
+skin = 0.3
+rebuild_interval = 5
+
+[execution]
+parallel = true
+
+[output]
+directory = "runs"
+name = "validation-xyz-input"
