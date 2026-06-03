@@ -376,6 +376,24 @@ pub struct RunManifest {
     pub input_file: Option<String>,
     pub topology_file: Option<String>,
     #[serde(default)]
+    pub config_hash: Option<String>,
+    #[serde(default)]
+    pub input_hash: Option<String>,
+    #[serde(default)]
+    pub topology_hash: Option<String>,
+    #[serde(default)]
+    pub engine_version: Option<String>,
+    #[serde(default)]
+    pub engine_git_commit: Option<String>,
+    #[serde(default)]
+    pub rust_target: Option<String>,
+    #[serde(default)]
+    pub platform: Option<String>,
+    #[serde(default)]
+    pub rayon_threads: Option<usize>,
+    #[serde(default)]
+    pub command_line: Option<Vec<String>>,
+    #[serde(default)]
     pub checkpoint_file: Option<String>,
     #[serde(default)]
     pub checkpoint_format: Option<String>,

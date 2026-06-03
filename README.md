@@ -145,8 +145,8 @@ The validation suite adds deterministic checks around the first engine:
   LJ + bonded force integration.
 - Per-element force-field defaults for mass, charge, sigma, and epsilon, with
   Lorentz-Berthelot LJ mixing when multiple LJ types are present.
-- Product-layer run manifests, project metadata, Markdown run reports, and
-  JSON or compact binary checkpoint/resume support.
+- Product-layer run manifests, reproducibility metadata, project metadata,
+  Markdown run reports, and JSON or compact binary checkpoint/resume support.
 
 Run the validation examples:
 
@@ -368,6 +368,19 @@ Generate or refresh the product report for a run directory:
 ```bash
 cargo run -p md-cli -- report runs/lj-fluid-001
 ```
+
+Inspect and verify reproducibility metadata without rerunning the simulation:
+
+```bash
+cargo run -p md-cli -- inspect runs/lj-fluid-001
+cargo run -p md-cli -- reproduce runs/lj-fluid-001
+```
+
+`run-manifest.json` records `fnv1a64:<hex>` hashes for `config.toml` plus
+copied input/topology files when present, engine version/git metadata, platform
+metadata, Rayon thread count, and the command line captured at run creation.
+`reproduce` validates those recorded files still match the manifest and fails
+fast if a file is missing, metadata is absent, or a hash differs.
 
 Resume a completed or interrupted run from the recorded checkpoint:
 

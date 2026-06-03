@@ -1,7 +1,8 @@
 use std::collections::BTreeMap;
 use std::fs::{self, File, OpenOptions};
-use std::io::{BufWriter, Write};
+use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{bail, Context, Result};
@@ -62,6 +63,10 @@ enum Commands {
         #[arg(long)]
         long: bool,
     },
+    /// Print reproducibility metadata for a run directory.
+    Inspect { run_dir: PathBuf },
+    /// Validate run-directory inputs against recorded reproducibility metadata.
+    Reproduce { run_dir: PathBuf },
     /// Compare naive and neighbor-list force evaluation for a config.
     BenchNeighbor {
         config: PathBuf,
@@ -98,6 +103,8 @@ fn main() -> Result<()> {
             Ok(())
         }
         Commands::ValidateSuite { long } => validate_suite_command(long),
+        Commands::Inspect { run_dir } => inspect_command(&run_dir),
+        Commands::Reproduce { run_dir } => reproduce_command(&run_dir),
         Commands::BenchNeighbor { config, repeats } => benchmark_neighbor_command(&config, repeats),
         Commands::Analyze {
             run_dir,
@@ -366,6 +373,251 @@ fn validate_config_for_suite(config_path: &Path) -> Result<()> {
         run_config.execution.parallel,
     )?;
     Ok(())
+}
+
+fn inspect_command(run_dir: &Path) -> Result<()> {
+    let manifest_path = run_dir.join("run-manifest.json");
+    let manifest = read_manifest_json(&manifest_path)
+        .with_context(|| format!("failed to read {}", manifest_path.display()))?;
+
+    println!("Reproducibility report");
+    println!("Run: {}", run_dir.display());
+    println!("Status: {}", manifest.status);
+    println!(
+        "Config: {}",
+        format_manifest_file_hash(&manifest.config_file, &manifest.config_hash)
+    );
+    println!(
+        "Input: {}",
+        format_optional_manifest_file_hash(manifest.input_file.as_deref(), &manifest.input_hash)
+    );
+    println!(
+        "Topology: {}",
+        format_optional_manifest_file_hash(
+            manifest.topology_file.as_deref(),
+            &manifest.topology_hash
+        )
+    );
+    println!(
+        "Engine version: {}",
+        manifest.engine_version.as_deref().unwrap_or("missing")
+    );
+    println!(
+        "Engine git commit: {}",
+        manifest.engine_git_commit.as_deref().unwrap_or("missing")
+    );
+    println!(
+        "Rust target: {}",
+        manifest.rust_target.as_deref().unwrap_or("missing")
+    );
+    println!(
+        "Platform: {}",
+        manifest.platform.as_deref().unwrap_or("missing")
+    );
+    println!(
+        "Rayon threads: {}",
+        manifest
+            .rayon_threads
+            .map(|threads| threads.to_string())
+            .unwrap_or_else(|| "missing".to_string())
+    );
+    println!(
+        "Command: {}",
+        manifest
+            .command_line
+            .as_ref()
+            .map(|args| args.join(" "))
+            .unwrap_or_else(|| "missing".to_string())
+    );
+
+    Ok(())
+}
+
+fn reproduce_command(run_dir: &Path) -> Result<()> {
+    let manifest_path = run_dir.join("run-manifest.json");
+    let manifest = read_manifest_json(&manifest_path)
+        .with_context(|| format!("failed to read {}", manifest_path.display()))?;
+    let mut failures = Vec::new();
+
+    println!("Reproduce check");
+    println!("Run: {}", run_dir.display());
+    verify_manifest_file_hash(
+        run_dir,
+        "Config",
+        Some(manifest.config_file.as_str()),
+        manifest.config_hash.as_deref(),
+        true,
+        &mut failures,
+    )?;
+    verify_manifest_file_hash(
+        run_dir,
+        "Input",
+        manifest.input_file.as_deref(),
+        manifest.input_hash.as_deref(),
+        false,
+        &mut failures,
+    )?;
+    verify_manifest_file_hash(
+        run_dir,
+        "Topology",
+        manifest.topology_file.as_deref(),
+        manifest.topology_hash.as_deref(),
+        false,
+        &mut failures,
+    )?;
+
+    if failures.is_empty() {
+        println!("Reproduce check passed.");
+        Ok(())
+    } else {
+        for failure in &failures {
+            eprintln!(" - {failure}");
+        }
+        bail!("reproduce check failed with {} issue(s)", failures.len())
+    }
+}
+
+fn populate_manifest_reproducibility(manifest: &mut RunManifest, run_dir: &Path) -> Result<()> {
+    manifest.config_hash = Some(hash_run_file(run_dir, &manifest.config_file)?);
+    manifest.input_hash = hash_optional_run_file(run_dir, manifest.input_file.as_deref())?;
+    manifest.topology_hash = hash_optional_run_file(run_dir, manifest.topology_file.as_deref())?;
+    manifest.engine_version = Some(env!("CARGO_PKG_VERSION").to_string());
+    manifest.engine_git_commit = current_git_commit();
+    manifest.rust_target = Some(rust_target_label());
+    manifest.platform = Some(platform_label());
+    manifest.rayon_threads = Some(rayon::current_num_threads());
+    manifest.command_line = Some(std::env::args().collect());
+    Ok(())
+}
+
+fn verify_manifest_file_hash(
+    run_dir: &Path,
+    label: &str,
+    file_name: Option<&str>,
+    expected_hash: Option<&str>,
+    required: bool,
+    failures: &mut Vec<String>,
+) -> Result<()> {
+    let Some(file_name) = file_name else {
+        if required {
+            failures.push(format!("{label}: missing file reference in manifest"));
+        } else if expected_hash.is_some() {
+            failures.push(format!("{label}: hash recorded without a file reference"));
+        } else {
+            println!("{label}: none recorded");
+        }
+        return Ok(());
+    };
+
+    let Some(expected_hash) = expected_hash else {
+        failures.push(format!(
+            "{label}: missing expected hash for {file_name}; run may predate reproducibility metadata"
+        ));
+        println!("{label}: missing hash for {file_name}");
+        return Ok(());
+    };
+
+    let path = run_dir.join(file_name);
+    if !path.exists() {
+        failures.push(format!("{label}: missing file {}", path.display()));
+        println!("{label}: missing {file_name}");
+        return Ok(());
+    }
+
+    let actual_hash = fnv1a64_file_hash(&path)?;
+    if actual_hash == expected_hash {
+        println!("{label}: ok {file_name} {actual_hash}");
+    } else {
+        failures.push(format!(
+            "{label}: hash mismatch for {file_name}; expected {expected_hash}, got {actual_hash}"
+        ));
+        println!("{label}: mismatch {file_name}");
+    }
+
+    Ok(())
+}
+
+fn hash_run_file(run_dir: &Path, file_name: &str) -> Result<String> {
+    fnv1a64_file_hash(&run_dir.join(file_name))
+}
+
+fn hash_optional_run_file(run_dir: &Path, file_name: Option<&str>) -> Result<Option<String>> {
+    file_name
+        .map(|file_name| hash_run_file(run_dir, file_name))
+        .transpose()
+}
+
+fn fnv1a64_file_hash(path: &Path) -> Result<String> {
+    const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
+    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+
+    let mut file =
+        File::open(path).with_context(|| format!("failed to open {}", path.display()))?;
+    let mut hash = FNV_OFFSET_BASIS;
+    let mut buffer = [0_u8; 8192];
+
+    loop {
+        let read = file
+            .read(&mut buffer)
+            .with_context(|| format!("failed to read {}", path.display()))?;
+        if read == 0 {
+            break;
+        }
+        for byte in &buffer[..read] {
+            hash ^= u64::from(*byte);
+            hash = hash.wrapping_mul(FNV_PRIME);
+        }
+    }
+
+    Ok(format!("fnv1a64:{hash:016x}"))
+}
+
+fn current_git_commit() -> Option<String> {
+    option_env!("GIT_COMMIT")
+        .map(str::trim)
+        .filter(|commit| !commit.is_empty())
+        .map(str::to_string)
+        .or_else(|| {
+            let output = Command::new("git")
+                .args([
+                    "-C",
+                    env!("CARGO_MANIFEST_DIR"),
+                    "rev-parse",
+                    "--short",
+                    "HEAD",
+                ])
+                .output()
+                .ok()?;
+            if !output.status.success() {
+                return None;
+            }
+            let commit = String::from_utf8(output.stdout).ok()?;
+            let commit = commit.trim();
+            (!commit.is_empty()).then(|| commit.to_string())
+        })
+}
+
+fn rust_target_label() -> String {
+    format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS)
+}
+
+fn platform_label() -> String {
+    format!(
+        "{} {} ({})",
+        std::env::consts::OS,
+        std::env::consts::ARCH,
+        std::env::consts::FAMILY
+    )
+}
+
+fn format_manifest_file_hash(file_name: &str, hash: &Option<String>) -> String {
+    format!("{file_name} ({})", hash.as_deref().unwrap_or("missing"))
+}
+
+fn format_optional_manifest_file_hash(file_name: Option<&str>, hash: &Option<String>) -> String {
+    file_name
+        .map(|file_name| format_manifest_file_hash(file_name, hash))
+        .unwrap_or_else(|| "none".to_string())
 }
 
 fn first_error_line(error: &anyhow::Error) -> String {
@@ -659,7 +911,7 @@ fn run_command(config_path: &Path) -> Result<()> {
     write_summary_json(run_dir.join("summary.json"), &summary)?;
 
     let completed_at = current_unix_seconds();
-    let manifest = RunManifest {
+    let mut manifest = RunManifest {
         schema_version: 1,
         application: "md-workstation".to_string(),
         run_name: run_name.clone(),
@@ -673,12 +925,22 @@ fn run_command(config_path: &Path) -> Result<()> {
         energy_file: "energy.csv".to_string(),
         input_file: summary.input_file.clone(),
         topology_file: summary.topology_file.clone(),
+        config_hash: None,
+        input_hash: None,
+        topology_hash: None,
+        engine_version: None,
+        engine_git_commit: None,
+        rust_target: None,
+        platform: None,
+        rayon_threads: None,
+        command_line: None,
         checkpoint_file: Some(checkpoint_file),
         checkpoint_format: Some(checkpoint_format),
         analysis_summary_file: None,
         report_file: Some("run-report.md".to_string()),
         outputs: summary.outputs.clone(),
     };
+    populate_manifest_reproducibility(&mut manifest, &run_dir)?;
     let report = render_markdown_report(&MarkdownReportInput {
         run_dir: &run_dir.display().to_string(),
         summary: &summary,
@@ -1031,7 +1293,7 @@ fn minimize_command(config_path: &Path) -> Result<()> {
     write_summary_json(run_dir.join("summary.json"), &summary)?;
 
     let completed_at = current_unix_seconds();
-    let manifest = RunManifest {
+    let mut manifest = RunManifest {
         schema_version: 1,
         application: "md-workstation".to_string(),
         run_name: run_name.clone(),
@@ -1045,12 +1307,22 @@ fn minimize_command(config_path: &Path) -> Result<()> {
         energy_file: "energy.csv".to_string(),
         input_file: summary.input_file.clone(),
         topology_file: summary.topology_file.clone(),
+        config_hash: None,
+        input_hash: None,
+        topology_hash: None,
+        engine_version: None,
+        engine_git_commit: None,
+        rust_target: None,
+        platform: None,
+        rayon_threads: None,
+        command_line: None,
         checkpoint_file: None,
         checkpoint_format: None,
         analysis_summary_file: None,
         report_file: Some("run-report.md".to_string()),
         outputs: summary.outputs.clone(),
     };
+    populate_manifest_reproducibility(&mut manifest, &run_dir)?;
     let report = render_markdown_report(&MarkdownReportInput {
         run_dir: &run_dir.display().to_string(),
         summary: &summary,
@@ -3180,6 +3452,15 @@ fn manifest_from_summary(summary: &RunSummary) -> RunManifest {
         energy_file: "energy.csv".to_string(),
         input_file: summary.input_file.clone(),
         topology_file: summary.topology_file.clone(),
+        config_hash: None,
+        input_hash: None,
+        topology_hash: None,
+        engine_version: None,
+        engine_git_commit: None,
+        rust_target: None,
+        platform: None,
+        rayon_threads: None,
+        command_line: None,
         checkpoint_file: summary
             .outputs
             .iter()
@@ -4500,6 +4781,65 @@ mod tests {
 
         assert_eq!(first_energy, second_energy);
         assert!(first_energy.contains("20,0.0200000000"));
+
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn run_manifest_records_reproducibility_metadata() {
+        let root = unique_temp_dir("md-cli-repro-metadata");
+        let output_dir = root.join("runs");
+        std::fs::create_dir_all(&root).unwrap();
+        let config_path = root.join("repro.toml");
+        std::fs::write(&config_path, deterministic_config_toml(&output_dir)).unwrap();
+
+        run_command(&config_path).unwrap();
+
+        let run_dir = output_dir.join("deterministic-001");
+        let manifest = read_manifest_json(run_dir.join("run-manifest.json")).unwrap();
+
+        assert!(manifest
+            .config_hash
+            .as_deref()
+            .unwrap()
+            .starts_with("fnv1a64:"));
+        assert_eq!(manifest.input_hash, None);
+        assert_eq!(manifest.topology_hash, None);
+        assert_eq!(manifest.engine_version.as_deref(), Some("0.1.0"));
+        assert!(manifest.rust_target.as_deref().unwrap().contains('-'));
+        assert!(manifest
+            .platform
+            .as_deref()
+            .unwrap()
+            .contains(std::env::consts::OS));
+        assert!(manifest.rayon_threads.unwrap() >= 1);
+        assert!(!manifest.command_line.unwrap().is_empty());
+
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reproduce_command_detects_config_hash_mismatch() {
+        let root = unique_temp_dir("md-cli-reproduce");
+        let output_dir = root.join("runs");
+        std::fs::create_dir_all(&root).unwrap();
+        let config_path = root.join("reproduce.toml");
+        std::fs::write(&config_path, deterministic_config_toml(&output_dir)).unwrap();
+
+        run_command(&config_path).unwrap();
+
+        let run_dir = output_dir.join("deterministic-001");
+        reproduce_command(&run_dir).unwrap();
+        std::fs::write(
+            run_dir.join("config.toml"),
+            deterministic_config_toml(&output_dir)
+                .replace("temperature = 0.2", "temperature = 0.3"),
+        )
+        .unwrap();
+
+        let error = reproduce_command(&run_dir).unwrap_err().to_string();
+
+        assert!(error.contains("reproduce check failed"));
 
         std::fs::remove_dir_all(root).unwrap();
     }
