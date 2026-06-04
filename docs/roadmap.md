@@ -213,9 +213,3 @@ These areas need design notes and validation strategies before implementation:
 - GPU backends
 - SIMD-specific kernels
 - domain decomposition
-
-## Working Rule
-
-Prefer the smallest task that improves correctness, reproducibility, diagnostics,
-documentation, user trust, or measured performance. Avoid impressive demos that
-increase scientific ambiguity.
