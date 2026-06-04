@@ -64,8 +64,8 @@ reproducible reports. It is not a production molecular simulation package.
 
 ## Explicit Non-Goals
 
-- Replacing GROMACS, AMBER, NAMD, OpenMM, Desmond, RDKit, or Open Babel.
+- Replacing established production MD engines or molecular conversion tools.
 - Clinical, pharmaceutical, or drug-design validation.
 - Full biomolecular preparation workflows.
-- External Python, Conda, Docker, WSL2, or proprietary toolchain dependency.
+- External runtime, container, VM, or proprietary toolchain dependency.
 - Production-scale GPU or distributed MD.
