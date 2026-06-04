@@ -31,13 +31,6 @@ to be self-contained, transparent, and easy to run on a local CPU.
   reproducibility metadata.
 - Optional egui/eframe desktop UI prototype behind the `desktop` feature.
 
-## What This Is Not
-
-- Not a replacement for production MD engines.
-- Not a clinically validated drug-design or pharmaceutical simulation package.
-- Not a general-purpose molecular file conversion toolkit.
-- Not a high-performance GPU or domain-decomposition engine.
-
 ## Documentation
 
 - [Validation](docs/validation.md)
