@@ -1,4 +1,4 @@
-//! Force calculations for the Rust MD workstation.
+//! Force calculations for MD Workstation.
 
 use md_core::{CoreError, SimulationBox, SystemState};
 use md_neighbor::{NeighborBoundary, NeighborError, NeighborList};

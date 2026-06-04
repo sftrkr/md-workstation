@@ -1,8 +1,8 @@
-# Rust MD Workstation
+# MD Workstation
 
-Rust MD Workstation is a Rust-native, CPU-focused molecular dynamics
-workstation for education, prototyping, force-field experiments, trajectory
-analysis, and reproducible small-scale reports.
+MD Workstation is a Rust-native, CPU-focused molecular dynamics workstation for
+education, prototyping, force-field experiments, trajectory analysis, and
+reproducible small-scale reports.
 
 The project is CLI-first and ships with its own built-in MD engine. It does not
 wrap GROMACS, AMBER, NAMD, OpenMM, Desmond, RDKit, Open Babel, Python, Conda,

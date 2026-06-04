@@ -1,4 +1,4 @@
-//! Core data structures for the Rust MD workstation.
+//! Core data structures for MD Workstation.
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
