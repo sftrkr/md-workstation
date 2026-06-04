@@ -1,5 +1,7 @@
 # MD Workstation
 
+[![CI](https://github.com/sftrkr/md-workstation/actions/workflows/ci.yml/badge.svg)](https://github.com/sftrkr/md-workstation/actions/workflows/ci.yml)
+
 MD Workstation is a Rust-native, CPU-focused molecular dynamics workstation for
 education, prototyping, force-field experiments, trajectory analysis, and
 reproducible small-scale reports.
@@ -431,10 +433,15 @@ Common checks:
 cargo fmt --all -- --check
 cargo test
 cargo check -p md-ui --features desktop
+cargo clippy --workspace --all-targets -- -D warnings
+cargo run -p md-cli -- validate-suite
 ```
 
 The desktop UI dependencies are optional and isolated behind the `desktop`
 feature. The normal CLI/test workflow does not require launching a GUI.
+
+GitHub Actions runs the same checks on pushes to `main`, pull requests, and
+manual workflow dispatches.
 
 ## Limitations
 

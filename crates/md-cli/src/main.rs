@@ -2349,16 +2349,10 @@ impl CheckpointSection {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 struct ExecutionSection {
     #[serde(default)]
     parallel: bool,
-}
-
-impl Default for ExecutionSection {
-    fn default() -> Self {
-        Self { parallel: false }
-    }
 }
 
 impl ExecutionSection {

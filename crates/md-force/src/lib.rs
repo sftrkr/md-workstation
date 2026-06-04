@@ -1137,6 +1137,7 @@ fn compute_lennard_jones_forces_parallel_for_all_mixed_pairs(
     Ok(finish_local_force_buffer(system, total))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn accumulate_lennard_jones_pair(
     system: &mut SystemState,
     i: usize,
@@ -1175,6 +1176,7 @@ fn accumulate_lennard_jones_pair(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn lennard_jones_pair_contribution(
     system: &SystemState,
     i: usize,
@@ -1688,7 +1690,7 @@ fn pair_indices_from_linear_index(index: usize, particle_count: usize) -> (usize
     let mut low = 0;
     let mut high = particle_count.saturating_sub(2);
     while low < high {
-        let mid = low + (high - low + 1) / 2;
+        let mid = low + (high - low).div_ceil(2);
         if pair_index_offset(mid, particle_count) <= index {
             low = mid;
         } else {

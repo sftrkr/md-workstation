@@ -143,17 +143,9 @@ pub fn read_pdb_coordinate_frames_from_reader<R: Read>(
         let line = line?;
         let line_number = line_index + 1;
         match pdb_record(&line) {
-            "MODEL" => {
-                if !atoms.is_empty() {
-                    push_pdb_frame(&mut frames, &mut atoms);
-                }
-            }
+            "MODEL" if !atoms.is_empty() => push_pdb_frame(&mut frames, &mut atoms),
             "ATOM" | "HETATM" => atoms.push(parse_pdb_atom(&line, line_number)?),
-            "ENDMDL" => {
-                if !atoms.is_empty() {
-                    push_pdb_frame(&mut frames, &mut atoms);
-                }
-            }
+            "ENDMDL" if !atoms.is_empty() => push_pdb_frame(&mut frames, &mut atoms),
             "END" => break,
             _ => {}
         }
@@ -186,10 +178,7 @@ fn read_xyz_frames_from_reader<R: Read>(
     let mut lines = BufReader::new(reader).lines().enumerate();
     let mut frames = Vec::new();
 
-    loop {
-        let Some((count_line_index, count_line)) = lines.next() else {
-            break;
-        };
+    while let Some((count_line_index, count_line)) = lines.next() {
         let count_line = count_line?;
         if count_line.trim().is_empty() {
             continue;
@@ -1005,12 +994,13 @@ mod tests {
     #[test]
     fn energy_writer_emits_header_and_sample() {
         let mut output = Vec::new();
-        let mut writer = EnergyCsvWriter::new(&mut output).unwrap();
-        writer
-            .write_sample(&EnergySample::new(1, 0.1, 2.0, -1.0, 0.5))
-            .unwrap();
-        writer.flush().unwrap();
-        drop(writer);
+        {
+            let mut writer = EnergyCsvWriter::new(&mut output).unwrap();
+            writer
+                .write_sample(&EnergySample::new(1, 0.1, 2.0, -1.0, 0.5))
+                .unwrap();
+            writer.flush().unwrap();
+        }
 
         let output = String::from_utf8(output).unwrap();
         assert!(output.contains("step,time,kinetic,potential,total,temperature"));
