@@ -445,7 +445,8 @@ manual workflow dispatches.
 
 ## Releases
 
-Linux release artifacts are published from existing `v*` git tags:
+Linux, Windows, and macOS binary artifacts are published from existing `v*` git
+tags:
 
 ```bash
 git tag -a v0.1.0 -m "v0.1.0"
@@ -454,9 +455,10 @@ git push origin v0.1.0
 
 The release workflow tests the workspace, validates curated configs, builds
 release binaries for `md` and `md-ui`, packages README/Cargo metadata and
-examples, writes a SHA-256 checksum, and publishes a GitHub Release with
-generated notes. The workflow can also be started manually for an existing tag
-from GitHub Actions.
+examples, writes SHA-256 checksums, and publishes a GitHub Release with
+generated notes. Linux and macOS packages are `.tar.gz` archives; Windows
+packages are `.zip` archives. The workflow can also be started manually for an
+existing tag from GitHub Actions.
 
 ## Limitations
 

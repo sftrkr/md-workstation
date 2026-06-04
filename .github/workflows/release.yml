@@ -19,15 +19,50 @@ env:
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
 jobs:
-  linux:
-    name: Linux release
+  test:
+    name: Test release inputs
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Test release inputs
+        run: |
+          cargo test --workspace --locked
+          cargo run --locked -p md-cli -- validate-suite
+
+  build:
+    name: Build ${{ matrix.label }}
+    needs: test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - label: Linux x86_64
+            os: ubuntu-latest
+            package: unix
+          - label: Windows x86_64
+            os: windows-latest
+            package: windows
+          - label: macOS
+            os: macos-latest
+            package: unix
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Install Rust toolchain
         run: |
@@ -35,6 +70,7 @@ jobs:
           rustup default stable
 
       - name: Install desktop UI system dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
@@ -48,37 +84,61 @@ jobs:
             libxkbcommon-dev \
             libxrandr-dev
 
-      - name: Test release inputs
-        run: |
-          cargo test --workspace --locked
-          cargo run --locked -p md-cli -- validate-suite
-
       - name: Build release binaries
         run: |
           cargo build --locked --release -p md-cli --bin md
           cargo build --locked --release -p md-ui --features desktop --bin md-ui
 
-      - name: Package artifacts
+      - name: Package Unix artifacts
+        if: matrix.package == 'unix'
+        shell: bash
         run: |
           set -euo pipefail
           host="$(rustc -Vv | awk '/host:/ { print $2 }')"
           package="md-workstation-${RELEASE_TAG}-${host}"
+          archive="dist/${package}.tar.gz"
           mkdir -p "dist/${package}/bin"
           cp target/release/md "dist/${package}/bin/"
           cp target/release/md-ui "dist/${package}/bin/"
           cp README.md Cargo.toml Cargo.lock "dist/${package}/"
           cp -R examples "dist/${package}/"
-          tar -C dist -czf "dist/${package}.tar.gz" "${package}"
-          sha256sum "dist/${package}.tar.gz" > "dist/${package}.tar.gz.sha256"
+          tar -C dist -czf "${archive}" "${package}"
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "${archive}" > "${archive}.sha256"
+          else
+            shasum -a 256 "${archive}" > "${archive}.sha256"
+          fi
           ls -lh dist/*.tar.gz dist/*.sha256
 
+      - name: Package Windows artifacts
+        if: matrix.package == 'windows'
+        shell: pwsh
+        run: |
+          $hostTriple = ((rustc -Vv | Select-String '^host:').Line -split '\s+')[1]
+          $package = "md-workstation-$env:RELEASE_TAG-$hostTriple"
+          $archive = "dist/$package.zip"
+          New-Item -ItemType Directory -Force -Path "dist/$package/bin"
+          Copy-Item -Path target/release/md.exe -Destination "dist/$package/bin/"
+          Copy-Item -Path target/release/md-ui.exe -Destination "dist/$package/bin/"
+          Copy-Item -Path README.md,Cargo.toml,Cargo.lock -Destination "dist/$package/"
+          Copy-Item -Path examples -Destination "dist/$package/examples" -Recurse
+          Compress-Archive -Path "dist/$package" -DestinationPath $archive -Force
+          $hash = (Get-FileHash -Path $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $(Split-Path -Leaf $archive)" | Set-Content -Path "$archive.sha256"
+          Get-ChildItem -Path dist -File | Format-Table -AutoSize
+
       - name: Publish GitHub Release
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${RELEASE_TAG}" \
-            dist/*.tar.gz \
-            dist/*.sha256 \
-            --repo "${GITHUB_REPOSITORY}" \
-            --verify-tag \
-            --generate-notes
+          set -euo pipefail
+          if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release upload "${RELEASE_TAG}" dist/* --repo "${GITHUB_REPOSITORY}" --clobber
+          else
+            gh release create "${RELEASE_TAG}" \
+              dist/* \
+              --repo "${GITHUB_REPOSITORY}" \
+              --verify-tag \
+              --generate-notes
+          fi
