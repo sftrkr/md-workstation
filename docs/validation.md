@@ -98,12 +98,16 @@ and the desktop UI feature build.
 
 The release workflow is triggered by `v*` tags or manual dispatch for an
 existing tag. It validates the workspace, builds `md` and `md-ui`, packages
-Linux, Windows, and macOS artifacts, and uploads SHA-256 checksums.
+Linux, Windows, and macOS artifacts with project docs and examples when present,
+and uploads SHA-256 checksums.
 
-## Validation Philosophy
+## Interpreting Results
 
-- Prefer deterministic examples over impressive demos.
-- Keep long stress tests manual unless they are cheap enough for CI.
-- Validate serial and optimized force paths against the same physical setup.
-- Document assumptions when a check is scientific smoke testing rather than
-  production validation.
+- The standard suite is a compact smoke test for curated configs and force
+  setup; it is not exhaustive scientific validation.
+- The long suite and manual stress configs are intended for slower regression
+  checks that do not need to run on every edit.
+- Force-path benchmarks should be read as consistency checks first and timing
+  measurements second.
+- Passing validation means the documented examples still load and exercise the
+  expected paths; it does not turn the project into a production MD engine.

@@ -1,8 +1,7 @@
 # Roadmap
 
-This roadmap is trimmed to the current codebase. It should guide next work by
-correctness, reproducibility, diagnostics, documentation, user trust, and
-measured performance.
+This roadmap is trimmed to the current codebase. It lists near-term product
+areas and research backlog items after the current v0.1 foundation.
 
 ## Current Baseline
 
@@ -33,21 +32,7 @@ The project now has a credible v0.1 foundation:
 
 ## Recommended Next Work
 
-### 1. Documentation Split And Polish
-
-Status: completed
-
-Goal: Keep README useful as the front door while moving deeper explanations into
-focused docs.
-
-Acceptance criteria:
-
-- `docs/validation.md`, `docs/architecture.md`, `docs/limitations.md`, and
-  `docs/roadmap.md` exist.
-- README links to the docs.
-- README remains concise enough for a first-time user.
-
-### 2. Diagnostics And Error Polish
+### 1. Diagnostics And Error Polish
 
 Goal: Make invalid or unstable runs easier to understand.
 
@@ -66,7 +51,7 @@ Acceptance criteria:
 - CLI messages include a useful recovery hint where possible.
 - Tests cover cutoff/box, overlap, and topology-index diagnostics.
 
-### 3. Public API And Crate Documentation
+### 2. Public API And Crate Documentation
 
 Goal: Make the Rust crates easier to understand before the API surface grows.
 
@@ -85,7 +70,7 @@ Acceptance criteria:
 - `cargo doc --workspace --no-deps` succeeds.
 - README or docs state the API stability expectation.
 
-### 4. Analysis Expansion
+### 3. Analysis Expansion
 
 Goal: Add useful trajectory analyses without pretending to be a full MD suite.
 
@@ -103,7 +88,7 @@ Acceptance criteria:
   RDF normalization.
 - Includes tests with tiny trajectories.
 
-### 5. Benchmarking V2
+### 4. Benchmarking V2
 
 Goal: Keep performance work honest and repeatable.
 
@@ -121,7 +106,7 @@ Acceptance criteria:
 - Benchmarks avoid writing large run directories unless explicitly requested.
 - Docs explain how to interpret noisy local benchmark results.
 
-### 6. HTML Report Export
+### 5. HTML Report Export
 
 Goal: Add a static self-contained HTML report while keeping Markdown as the
 simple canonical format.
@@ -140,7 +125,7 @@ Acceptance criteria:
   summary, output files, and limitations.
 - No web service or external renderer is required.
 
-### 7. Binary Trajectory Format
+### 6. Binary Trajectory Format
 
 Goal: Add a Rust-native binary trajectory format only after text workflows
 remain stable.
@@ -162,7 +147,7 @@ Acceptance criteria:
 - Round-trip tests cover small trajectories.
 - XYZ remains the easiest human-readable default.
 
-### 8. Units System V2
+### 7. Units System V2
 
 Goal: Clarify units and avoid accidental overclaiming.
 
@@ -179,7 +164,7 @@ Acceptance criteria:
 - Config validation rejects ambiguous unit-mode combinations.
 - Docs explain that real biomolecular units are not implemented yet.
 
-### 9. Release Polish
+### 8. Release Polish
 
 Goal: Make public releases easier to consume.
 

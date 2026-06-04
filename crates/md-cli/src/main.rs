@@ -83,7 +83,7 @@ enum Commands {
     },
     /// Generate a Markdown report for a completed run directory.
     Report { run_dir: PathBuf },
-    /// Continue a run directory from checkpoint.json.
+    /// Continue a run directory from its recorded checkpoint.
     Resume {
         run_dir: PathBuf,
         #[arg(long)]

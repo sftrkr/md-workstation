@@ -82,7 +82,7 @@ runs/lj-fluid-001/
   summary.json
   run-manifest.json
   run-report.md
-  checkpoint.json
+  checkpoint.json  # or checkpoint.bin for binary checkpoints
 ```
 
 ## CLI Commands
@@ -464,8 +464,8 @@ git push origin v0.1.0
 ```
 
 The release workflow tests the workspace, validates curated configs, builds
-release binaries for `md` and `md-ui`, packages README/Cargo metadata and
-examples, writes SHA-256 checksums, and publishes a GitHub Release with
+release binaries for `md` and `md-ui`, packages README, docs, Cargo metadata,
+and examples, writes SHA-256 checksums, and publishes a GitHub Release with
 generated notes. Linux and macOS packages are `.tar.gz` archives; Windows
 packages are `.zip` archives. The workflow can also be started manually for an
 existing tag from GitHub Actions.

@@ -101,6 +101,9 @@ jobs:
           cp target/release/md "dist/${package}/bin/"
           cp target/release/md-ui "dist/${package}/bin/"
           cp README.md Cargo.toml Cargo.lock "dist/${package}/"
+          if [ -d docs ]; then
+            cp -R docs "dist/${package}/"
+          fi
           cp -R examples "dist/${package}/"
           tar -C dist -czf "${archive}" "${package}"
           if command -v sha256sum >/dev/null 2>&1; then
@@ -121,6 +124,9 @@ jobs:
           Copy-Item -Path target/release/md.exe -Destination "dist/$package/bin/"
           Copy-Item -Path target/release/md-ui.exe -Destination "dist/$package/bin/"
           Copy-Item -Path README.md,Cargo.toml,Cargo.lock -Destination "dist/$package/"
+          if (Test-Path docs) {
+            Copy-Item -Path docs -Destination "dist/$package/docs" -Recurse
+          }
           Copy-Item -Path examples -Destination "dist/$package/examples" -Recurse
           Compress-Archive -Path "dist/$package" -DestinationPath $archive -Force
           $hash = (Get-FileHash -Path $archive -Algorithm SHA256).Hash.ToLowerInvariant()

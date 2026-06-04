@@ -98,12 +98,13 @@ runs/lj-fluid-001/
   summary.json
   run-manifest.json
   run-report.md
-  checkpoint.json
+  checkpoint.json  # or checkpoint.bin for binary checkpoints
 ```
 
 Runs with coordinate or topology inputs copy those files into the run directory.
-The manifest records stable output file names, hashes for copied inputs, engine
-metadata, platform metadata, Rayon thread count, and command line.
+The manifest records stable output file names, checkpoint file and format,
+hashes for copied inputs, engine metadata, platform metadata, Rayon thread
+count, and command line.
 
 ## Desktop UI Boundary
 
