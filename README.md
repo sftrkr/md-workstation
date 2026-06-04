@@ -443,6 +443,21 @@ feature. The normal CLI/test workflow does not require launching a GUI.
 GitHub Actions runs the same checks on pushes to `main`, pull requests, and
 manual workflow dispatches.
 
+## Releases
+
+Linux release artifacts are published from existing `v*` git tags:
+
+```bash
+git tag -a v0.1.0 -m "v0.1.0"
+git push origin v0.1.0
+```
+
+The release workflow tests the workspace, validates curated configs, builds
+release binaries for `md` and `md-ui`, packages README/Cargo metadata and
+examples, writes a SHA-256 checksum, and publishes a GitHub Release with
+generated notes. The workflow can also be started manually for an existing tag
+from GitHub Actions.
+
 ## Limitations
 
 - Reduced Lennard-Jones units only; no real unit conversion layer yet.
