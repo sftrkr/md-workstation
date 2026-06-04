@@ -133,11 +133,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          shopt -s nullglob
+          assets=(dist/*.tar.gz dist/*.tar.gz.sha256 dist/*.zip dist/*.zip.sha256)
+          if ((${#assets[@]} == 0)); then
+            echo "No release assets found in dist"
+            exit 1
+          fi
           if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            gh release upload "${RELEASE_TAG}" dist/* --repo "${GITHUB_REPOSITORY}" --clobber
+            gh release upload "${RELEASE_TAG}" "${assets[@]}" --repo "${GITHUB_REPOSITORY}" --clobber
           else
             gh release create "${RELEASE_TAG}" \
-              dist/* \
+              "${assets[@]}" \
               --repo "${GITHUB_REPOSITORY}" \
               --verify-tag \
               --generate-notes
