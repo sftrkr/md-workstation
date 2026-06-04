@@ -1,6 +1,9 @@
 # MD Workstation
 
-[![CI](https://github.com/sftrkr/md-workstation/actions/workflows/ci.yml/badge.svg)](https://github.com/sftrkr/md-workstation/actions/workflows/ci.yml)
+[![Tests](https://github.com/sftrkr/md-workstation/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sftrkr/md-workstation/actions/workflows/ci.yml)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](Cargo.toml)
+[![Rust 1.76+](https://img.shields.io/badge/rust-1.76%2B-orange.svg)](Cargo.toml)
+[![Platforms: Linux, Windows, macOS](https://img.shields.io/badge/platform-linux%20%7C%20windows%20%7C%20macOS-lightgrey.svg)](https://github.com/sftrkr/md-workstation/releases)
 
 MD Workstation is a Rust-native, CPU-focused molecular dynamics workstation for
 education, prototyping, force-field experiments, trajectory analysis, and
