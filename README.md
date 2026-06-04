@@ -39,6 +39,13 @@ Docker, WSL2, or GPU tooling.
 - Not a general-purpose molecular file conversion toolkit.
 - Not a high-performance GPU or domain-decomposition engine.
 
+## Documentation
+
+- [Validation](docs/validation.md)
+- [Architecture](docs/architecture.md)
+- [Limitations](docs/limitations.md)
+- [Roadmap](docs/roadmap.md)
+
 ## Quick Start
 
 Run the default example:
@@ -485,12 +492,5 @@ existing tag from GitHub Actions.
 
 ## Roadmap
 
-The completed foundation now covers the original CLI-first phases. Sensible next
-directions are:
-
-- richer trajectory storage for larger runs
-- stronger minimizers and constraints
-- broader molecular file support
-- residue/template-based force-field assignment
-- better UI ergonomics around config editing and run monitoring
-- packaging and release automation
+The completed foundation now covers the original CLI-first phases. See
+[docs/roadmap.md](docs/roadmap.md) for the trimmed current roadmap.
